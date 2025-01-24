@@ -47,7 +47,7 @@ import {
   AnyEventType,
   ResponseUrlSender,
   SlackAPIClient,
-} from "https://deno.land/x/slack_web_api_client@1.1.4/mod.ts";
+} from "https://deno.land/x/slack_web_api_client@1.1.5/mod.ts";
 import {
   builtBaseContext,
   isAssitantThreadEvent,
@@ -60,7 +60,7 @@ import { Middleware, PreAuthorizeMiddleware } from "./middleware/middleware.ts";
 import {
   isDebugLogEnabled,
   prettyPrint,
-} from "https://deno.land/x/slack_web_api_client@1.1.4/mod.ts";
+} from "https://deno.land/x/slack_web_api_client@1.1.5/mod.ts";
 import { Authorize } from "./authorization/authorize.ts";
 import { AuthorizeResult } from "./authorization/authorize-result.ts";
 import {

@@ -1,4 +1,4 @@
-import { AnyEventType } from "https://deno.land/x/slack_web_api_client@1.1.4/mod.ts";
+import { AnyEventType } from "https://deno.land/x/slack_web_api_client@1.1.5/mod.ts";
 import { EventRequest, MessageEventHandler } from "../app.ts";
 import { SlackAppEnv } from "../app-env.ts";
 import {
