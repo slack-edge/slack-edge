@@ -16,7 +16,7 @@ This framework draws significant inspiration from Slack's [Bolt framework](https
 * **Edge function ready**: Out-of-the-box edge function (e.g., Cloudflare Workers) support
 * **TypeScript focused**: Enhances type safety and clarifies typings for developers
 * **Lazy listener enabled**: [bolt-python's lazy listener feature](https://tools.slack.dev/bolt-python/concepts/lazy-listeners) is provided out of the box
-* **Zero additional dependencies**: No other dependencies required beyond TypeScript types and [slack-web-api-client](https://github.com/seratch/slack-web-api-client) (our fetch-function-based Slack API client)
+* **Zero additional dependencies**: No other dependencies required beyond TypeScript types and [slack-web-api-client](https://github.com/slack-edge/slack-web-api-client) (our fetch-function-based Slack API client)
 
 ## Getting Started
 
@@ -26,7 +26,7 @@ Currently, you can use this library for three different platforms.
 
 [Cloudflare Workers](https://workers.cloudflare.com/) is an edge function platform for quickly deploying an app.
 
-The only additional thing you need to do is to add [the **slack-cloudflare-workers** package](https://github.com/seratch/slack-cloudflare-workers) to your Cloudflare Workers app project. The **slack-cloudflare-workers** package enhances **slack-edge** with Cloudflare Workers-specific features, such as KV-based installation stores.
+The only additional thing you need to do is to add [the **slack-cloudflare-workers** package](https://github.com/slack-edge/slack-cloudflare-workers) to your Cloudflare Workers app project. The **slack-cloudflare-workers** package enhances **slack-edge** with Cloudflare Workers-specific features, such as KV-based installation stores.
 
 ```bash
 npm install -g wrangler@latest
@@ -75,7 +75,7 @@ SLACK_LOGGING_LEVEL=DEBUG
 
 When you run `wrangler dev --port 3000`, your app process spins up, and it starts handling API requests at `http://localhost:3000/slack/events`. You may want to run Cloudflare Tunnel or something equivalent to forward public endpoint requests to this local app process.
 
-Refer to https://github.com/seratch/slack-cloudflare-workers/blob/main/docs/index.md for further guidance.
+Refer to https://github.com/slack-edge/slack-cloudflare-workers/blob/main/docs/index.md for further guidance.
 
 ### Vercel Edge Functions
 
@@ -276,7 +276,7 @@ cloudflared tunnel --url http://localhost:3000
 
 #### Run with Deno
 
-Please refer to [README for the Deno module](https://github.com/seratch/slack-edge/blob/main/src_deno/README.md).
+Please refer to [README for the Deno module](https://github.com/slack-edge/slack-edge/blob/main/src_deno/README.md).
 
 #### Run with Node.js (Socket Mode: Production-ready)
 
@@ -322,7 +322,7 @@ socketModeClient.on("slack_event", async ({ body, ack, retry_num: retryNum, retr
 })();
 ```
 
-If you want to build a Slack app this way, [this project template](https://github.com/seratch/slack-edge-app-template) should be pretty useful for you!
+If you want to build a Slack app this way, [this project template](https://github.com/slack-edge/slack-edge-app-template) should be pretty useful for you!
 
 #### Run with Remix + Node.js
 

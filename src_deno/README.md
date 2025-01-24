@@ -25,7 +25,7 @@ Key differences include:
   is provided out of the box
 - **Zero additional dependencies**: No other dependencies required beyond
   TypeScript types and
-  [slack-web-api-client](https://github.com/seratch/slack-web-api-client) (our
+  [slack-web-api-client](https://github.com/slack-edge/slack-web-api-client) (our
   fetch-function-based Slack API client)
 
 ## Getting Started
