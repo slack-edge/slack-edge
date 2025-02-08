@@ -232,6 +232,8 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
   #viewSubmissions: ((body: SlackRequestBody) => SlackViewHandler<E, ViewSubmission> | null)[] = [];
   #viewClosed: ((body: SlackRequestBody) => SlackViewHandler<E, ViewClosed> | null)[] = [];
 
+  #assistantEnabled: boolean;
+
   // --------------------------
 
   constructor(options: SlackAppOptions<E>) {
@@ -269,6 +271,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
     this.authorizeErrorHandler = options.authorizeErrorHandler ?? buildDefaultAuthorizeErrorHanlder();
     this.routes = { events: options.routes?.events };
     this.assistantThreadContextStore = options.assistantThreadContextStore;
+    this.#assistantEnabled = options.assistantThreadContextStore !== undefined;
   }
 
   /**
@@ -389,11 +392,12 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
     lazy: EventLazyHandler<Type, E>,
     handleSelfBotMessageEvents: boolean = false,
   ): SlackApp<E> {
+    this.#assistantEnabled = true;
     this.#events.push((body) => {
       if (body.type !== PayloadType.EventsAPI || !body.event) {
         return null;
       }
-      if (body.event.type === event && isAssitantThreadEvent(body)) {
+      if (body.event.type === event && this.#assistantEnabled && isAssitantThreadEvent(body)) {
         if (event === "message" && "bot_profile" in body.event) {
           if (handleSelfBotMessageEvents) {
             // this app's bot message events
@@ -874,7 +878,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
         const context = authorizedContext as SlackAppContextWithChannelId;
         const primaryToken = context.functionBotAccessToken || context.botToken;
         const client = new SlackAPIClient(primaryToken);
-        if (authorizedContext.isAssistantThreadEvent) {
+        if (this.#assistantEnabled && authorizedContext.isAssistantThreadEvent) {
           const assistantContext = authorizedContext as SlackAppContextWithAssistantUtilities;
           const { channelId: channel_id, threadTs: thread_ts } = assistantContext;
           // setStatus
