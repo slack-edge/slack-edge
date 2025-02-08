@@ -36,7 +36,7 @@ Key differences include:
 import {
   SlackApp,
   SlackEdgeAppEnv,
-} from "https://deno.land/x/slack_edge@1.3.6/mod.ts";
+} from "https://deno.land/x/slack_edge@1.3.7/mod.ts";
 
 const app = new SlackApp<SlackEdgeAppEnv>({
   env: {
@@ -77,7 +77,7 @@ run a Socket Mode app as below:
 import {
   SlackApp,
   SlackSocketModeAppEnv,
-} from "https://deno.land/x/slack_edge@1.3.6/mod.ts";
+} from "https://deno.land/x/slack_edge@1.3.7/mod.ts";
 
 const app = new SlackApp<SlackSocketModeAppEnv>({
   env: {
