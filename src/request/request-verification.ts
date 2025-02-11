@@ -1,5 +1,6 @@
 /**
- * Verifies if a request's signature is correct.
+ * Verifies if a request's signature is correct. This code could serve as a reference implementation for verifying the signature in a request from Slack.
+ * @param signingSecret signing secret
  * @param signingSecret signing secret
  * @param requestHeaders request headers
  * @param requestBody request body

@@ -169,12 +169,18 @@ export interface DataSubmissionView {
   close: PlainTextField | null;
   submit: PlainTextField | null;
   state: {
+    /**
+     * A dictionary of objects. Each object represents a block in the source view that contained stateful, interactive components. Objects are keyed by the block_id of those blocks. These objects each contain a child object. The child object is keyed by the action_id of the interactive element in the block. This final child object will contain the type and submitted value of the input block element.
+     */
     values: {
       [blockId: string]: {
         [actionId: string]: ViewStateValue;
       };
     };
   };
+  /**
+   * A unique value that is optionally accepted in views.update and views.publish API calls. When provided to those APIs, the hash is validated such that only the most recent view can be updated. This should be used to ensure the correct view is being updated when updates are happening asynchronously.
+   */
   hash: string;
   private_metadata: string;
   root_view_id: string | null;

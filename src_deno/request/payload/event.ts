@@ -6,6 +6,40 @@ import {
   MessageMetadata,
 } from "https://deno.land/x/slack_web_api_client@1.1.5/mod.ts";
 
+// ------------------------------------------
+// The Events API payloads
+// ------------------------------------------
+//
+// The Events API is a streamlined way to build apps and bots that respond to activities in Slack. When you use the Events API, Slack calls you. If you're using Bolt framework, you can handle this pattern using app.event listners.
+//
+// You have two options: you can either use Socket Mode or you can designate a public HTTP endpoint that your app listens on, choose what events to subscribe to, and voilà: Slack sends the appropriate events to you. Learn more about the differences between Socket Mode and HTTP here.
+//
+// All you need is a Slack app and a secure place for us to send your events. With the Events API, you can do the following:
+//
+// - Tell Slack where to send your event types and we'll deliver them with grace, security, and respect. We'll even retry when things don't work out. The event types sent to you are directly tied to the OAuth permission scopes awarded as users install your Slack app.
+// - Subscribe to only the event types you want; don't worry about the ones you don't need.
+// - Subscribe your Slack apps to events related to channels and direct messages they are party to. Build bots without a bothersome bevy of Real Time Messaging (RTM) API WebSockets.
+//
+// Many apps built using the Events API will follow the same abstract event-driven sequence:
+//
+// - A user creates a circumstance that triggers an event subscription to your application.
+// - Your server receives a payload of JSON describing that event.
+// - Your server acknowledges receipt of the event.
+// - Your business logic decides what to do about that event.
+// - Your server carries out that decision.
+//
+// If your app is a bot listening to messages with specific trigger phrases, that event loop may play out something like the following:
+//
+// - Members send messages in a channel the bot belongs to—the #random channel. The messages are about lots of things, but some of them contain today's secret word.
+// - Your server receives a message.channels event, as per its bot subscription and membership in the #random channel.
+// - Your server responds with a swift and confident HTTP 200 OK.
+// - Your bot is trained to listen for today's secret word, and having found it, decides to send a message to the channel, encouraging everyone to keep that word secret.
+// - Your server uses chat.postMessage from the Web API to post that message to #random.
+//
+// Using the Web API with the Events API empowers your app or bot to do much more than just listen and reply to messages.
+//
+// See: https://api.slack.com/apis/events-api
+
 export type AnySlackEvent =
   | AppRequestedEvent
   | AppInstalledEvent

@@ -1,5 +1,5 @@
 /**
- * Parses a request payload data.
+ * Parses a request payload's data. This code could serve as a reference implementation for parsing various Slack payload patterns.
  * @param requestHeaders request headers
  * @param requestBody request body
  * @returns parsed object

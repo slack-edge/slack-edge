@@ -3,8 +3,32 @@ import { DataSubmissionView, ViewStateValue } from "./view-objects";
 import { BotProfile } from "./event";
 
 // ------------------------------------------
-// The whole block_actions payload
+// The block_actions payload
 // ------------------------------------------
+//
+// A block_actions payload is received when a user interacts with a Block Kit interactive component.
+// Read our guide to handling payloads from user interactions to learn how your app should process and respond to these payloads.
+// If you use Bolt framework, you can handle this pattern using app.action listners.
+//
+// Timing of payload dispatch:
+// --------------------------
+// |Component|	Payload sent|
+// |button| When the button is clicked.|
+// |checkboxes| When a checkbox is ticked or unticked.|
+// When a checkbox is ticked or unticked.|
+// |datepicker| When a date is chosen and the date picker closes.|
+// |multi_*_select| Each time an item is chosen from the multi-select menu.|
+// |overflow| When an item from the overflow menu is clicked.|
+// |plain_text_input| Determined by the dispatch_action_config field in the element.|
+// |radio| When the selected radio in a group of radio buttons is changed.|
+// |*_select| When an item is chosen from the select menu.|
+// |rich_text_input| Determined by the dispatch_action_config field in the element.|
+// --------------------------
+//
+// Deselecting the currently selected option of a Block Kit static option will return a null value. For more information about select menu elements, refer to select menu of static options.
+// To send this block_actions payload for interactive components used within input blocks, you can set dispatch_action to true in those input blocks. They are included in view_submission payloads as well.
+//
+// See: https://api.slack.com/reference/interaction-payloads/block-actions
 
 export type BlockAction<A extends BlockElementAction> = MessageBlockAction<A> | ViewBlockAction<A>;
 
