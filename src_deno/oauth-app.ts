@@ -436,16 +436,6 @@ export class SlackOAuthApp<E extends SlackOAuthEnv> extends SlackApp<E> {
       });
     }
     const installation = toInstallation(oauthAccess);
-    if (this.oauth.afterInstallation) {
-      const response = await this.oauth.afterInstallation({
-        env: this.env,
-        request,
-        installation,
-      });
-      if (response) {
-        return response;
-      }
-    }
 
     try {
       // Store the installation data on this app side
@@ -458,6 +448,17 @@ export class SlackOAuthApp<E extends SlackOAuthEnv> extends SlackApp<E> {
         reason: InstallationStoreError,
         request,
       });
+    }
+
+    if (this.oauth.afterInstallation) {
+      const response = await this.oauth.afterInstallation({
+        env: this.env,
+        request,
+        installation,
+      });
+      if (response) {
+        return response;
+      }
     }
 
     try {
