@@ -457,7 +457,7 @@ export class SlackOAuthApp<E extends SlackOAuthEnv> extends SlackApp<E> {
     }
     const stateValue = await this.stateStore.issueNewState();
     const authorizeUrl = generateOIDCAuthorizeUrl(stateValue, this.env);
-    return await this.oauth.start({
+    return await this.oidc.start({
       env: this.env,
       authorizeUrl,
       stateCookieName: this.oidc.stateCookieName!,
