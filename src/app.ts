@@ -1149,7 +1149,9 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
         }
       }
       // TODO: Add code suggestion here
-      console.log(`*** No listener found ***\n${JSON.stringify(baseRequest.body)}`);
+      if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
+        console.log(`*** No listener found ***\n${JSON.stringify(baseRequest.body)}`);
+      }
       return new Response("No listener found", { status: 404 });
     }
     return new Response("Invalid signature", { status: 401 });
