@@ -7,7 +7,7 @@ import {
   ChatPostMessageResponse,
   SlackAPIClient,
   WebhookParams,
-} from "https://deno.land/x/slack_web_api_client@1.1.5/mod.ts";
+} from "https://deno.land/x/slack_web_api_client@1.1.6/mod.ts";
 import { PayloadType } from "../request/payload-types.ts";
 import { AssistantThreadContextStore } from "../assistant/thread-context-store.ts";
 import { AssistantThreadContext } from "../assistant/thread-context.ts";

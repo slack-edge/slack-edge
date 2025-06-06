@@ -9,7 +9,7 @@ import {
   OAuthV2AccessResponse,
   OpenIDConnectTokenResponse,
   SlackAPIClient,
-} from "https://deno.land/x/slack_web_api_client@1.1.5/mod.ts";
+} from "https://deno.land/x/slack_web_api_client@1.1.6/mod.ts";
 import { toInstallation } from "./oauth/installation.ts";
 import {
   AfterInstallation,
@@ -144,7 +144,7 @@ export class SlackOAuthApp<E extends SlackOAuthEnv> extends SlackApp<E> {
   /**
    * Passed env variables for configuring the app.
    */
-  public env: E;
+  public override env: E;
 
   /**
    * InstallationStore for managing installation data such as issued OAUth tokens.
@@ -189,7 +189,7 @@ export class SlackOAuthApp<E extends SlackOAuthEnv> extends SlackApp<E> {
    * The endpoint routes to handle requests from Slack's API server.
    * When this app connects to Slack through Socket Mode, this setting won't be used.
    */
-  public routes: {
+  public override routes: {
     // The name "events" could be somewhat confusing, but this path handles all types of request patterns
     events: string;
     oauth: { start: string; callback: string };
@@ -315,7 +315,7 @@ export class SlackOAuthApp<E extends SlackOAuthEnv> extends SlackApp<E> {
     });
   }
 
-  async run(
+  override async run(
     request: Request,
     ctx: ExecutionContext = new NoopExecutionContext(),
   ): Promise<Response> {
@@ -347,7 +347,7 @@ export class SlackOAuthApp<E extends SlackOAuthEnv> extends SlackApp<E> {
    * @param ctx execution context
    * @returns response
    */
-  async handleEventRequest(
+  override async handleEventRequest(
     request: Request,
     ctx: ExecutionContext,
   ): Promise<Response> {

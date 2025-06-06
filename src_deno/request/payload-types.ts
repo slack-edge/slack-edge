@@ -16,5 +16,7 @@ export enum PayloadType {
   ViewSubmission = "view_submission",
   // app.view listeners
   ViewClosed = "view_closed",
+  // app rate limited listeners
+  AppRateLimited = "app_rate_limited",
   // Note that Slash command payloads do not have "type" property
 }

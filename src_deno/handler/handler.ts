@@ -1,4 +1,4 @@
-import { AnyEventType } from "https://deno.land/x/slack_web_api_client@1.1.5/mod.ts";
+import { AnyEventType } from "https://deno.land/x/slack_web_api_client@1.1.6/mod.ts";
 import { EventRequest, MessageEventHandler } from "../app.ts";
 import { SlackAppEnv } from "../app-env.ts";
 import {
@@ -29,6 +29,7 @@ import {
   FileShareMessageEvent,
   GenericMessageEvent,
 } from "../request/payload/event.ts";
+import { AppRateLimited } from "../request/payload/app-rate-limited.ts";
 
 /**
  * Returned data from an ack function.
@@ -250,4 +251,15 @@ export type ViewSubmissionLazyHandler<E extends SlackAppEnv = SlackAppEnv> = (
  */
 export type ViewClosedLazyHandler<E extends SlackAppEnv = SlackAppEnv> = (
   req: SlackRequest<E, ViewClosed>,
+) => Promise<void>;
+
+// ----------------------------------------
+// App rate limited
+// ----------------------------------------
+
+/**
+ * lazy function for app_rate_limited request handling.
+ */
+export type AppRateLimitedLazyHandler<E extends SlackAppEnv = SlackAppEnv> = (
+  req: SlackRequest<E, AppRateLimited>,
 ) => Promise<void>;

@@ -734,6 +734,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
       if (body.type !== PayloadType.AppRateLimited) {
         return null;
       }
+      // deno-lint-ignore require-await
       return { ack: async () => "", lazy };
     };
     return this;
