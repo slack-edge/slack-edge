@@ -77,6 +77,9 @@ describe("SlackApp", () => {
       const botId: string = context.botId;
     };
     app.event("app_mention", appMentionEvent);
+    app.event("user_status_changed", async () => {});
+    app.event("user_profile_changed", async () => {});
+    app.event("user_huddle_changed", async () => {});
 
     const tokensRevokedEvent: EventLazyHandler<"tokens_revoked"> = async ({ payload }) => {
       const type: "tokens_revoked" = payload.type;

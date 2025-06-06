@@ -1,4 +1,4 @@
-import { AnyEventType, isDebugLogEnabled, prettyPrint, ResponseUrlSender, SlackAPIClient } from "slack-web-api-client";
+import { isDebugLogEnabled, prettyPrint, ResponseUrlSender, SlackAPIClient } from "slack-web-api-client";
 import { SlackAppEnv, SlackEdgeAppEnv, SlackSocketModeAppEnv } from "./app-env";
 import {
   Assistant,
@@ -57,7 +57,7 @@ import { PayloadType } from "./request/payload-types";
 import { AppRateLimited } from "./request/payload/app-rate-limited";
 import { BlockAction, BlockElementActions, BlockElementTypes } from "./request/payload/block-action";
 import { BlockSuggestion } from "./request/payload/block-suggestion";
-import { AnySlackEvent, AnySlackEventWithChannelId, SlackEvent } from "./request/payload/event";
+import { AnySlackEvent, AnySlackEventWithChannelId, SlackEvent, SupportedEventType } from "./request/payload/event";
 import { GlobalShortcut } from "./request/payload/global-shortcut";
 import { MessageShortcut } from "./request/payload/message-shortcut";
 import { SlashCommand } from "./request/payload/slash-command";
@@ -221,7 +221,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
   // --------------------------
 
   #slashCommands: ((body: SlackRequestBody) => SlackMessageHandler<E, SlashCommand> | null)[] = [];
-  #events: ((body: SlackRequestBody) => SlackHandler<E, SlackEvent<AnyEventType>> | null)[] = [];
+  #events: ((body: SlackRequestBody) => SlackHandler<E, SlackEvent<SupportedEventType>> | null)[] = [];
   #globalShorcuts: ((body: SlackRequestBody) => SlackHandler<E, GlobalShortcut> | null)[] = [];
   #messageShorcuts: ((body: SlackRequestBody) => SlackHandler<E, MessageShortcut> | null)[] = [];
   #blockActions: ((body: SlackRequestBody) => SlackHandler<
@@ -375,7 +375,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
    * @param lazy lazy function that can do anything asynchronously
    * @returns this instance
    */
-  event<Type extends AnyEventType>(event: Type, lazy: EventLazyHandler<Type, E>): SlackApp<E> {
+  event<Type extends SupportedEventType>(event: Type, lazy: EventLazyHandler<Type, E>): SlackApp<E> {
     this.#events.push((body) => {
       if (body.type !== PayloadType.EventsAPI || !body.event) {
         return null;
@@ -389,7 +389,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
     return this;
   }
 
-  #assistantEvent<Type extends AnyEventType>(
+  #assistantEvent<Type extends SupportedEventType>(
     event: Type,
     lazy: EventLazyHandler<Type, E>,
     handleSelfBotMessageEvents: boolean = false,
@@ -982,7 +982,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
 
       if (body.type === PayloadType.EventsAPI) {
         // Events API
-        const slackRequest: SlackRequest<E, SlackEvent<AnyEventType>> = {
+        const slackRequest: SlackRequest<E, SlackEvent<SupportedEventType>> = {
           payload: body.event,
           ...baseRequest,
         };

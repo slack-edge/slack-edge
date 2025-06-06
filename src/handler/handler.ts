@@ -1,4 +1,3 @@
-import { AnyEventType } from "slack-web-api-client";
 import { EventRequest, MessageEventHandler } from "../app";
 import { SlackAppEnv } from "../app-env";
 import { BlockAction, BlockElementAction, BlockElementActions, BlockElementTypes } from "../request/payload/block-action";
@@ -23,6 +22,7 @@ import {
   AssistantThreadStartedEvent,
   FileShareMessageEvent,
   GenericMessageEvent,
+  SupportedEventType,
 } from "../request/payload/event";
 import { AppRateLimited } from "../request/payload/app-rate-limited";
 
@@ -62,7 +62,7 @@ export type SlashCommandLazyHandler<E extends SlackAppEnv = SlackAppEnv> = (req:
 /**
  * lazy function for Events API handling.
  */
-export type EventLazyHandler<Type extends AnyEventType, E extends SlackAppEnv = SlackAppEnv> = (
+export type EventLazyHandler<Type extends SupportedEventType, E extends SlackAppEnv = SlackAppEnv> = (
   req: EventRequest<E, Type>,
 ) => Promise<void>;
 

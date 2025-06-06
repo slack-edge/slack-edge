@@ -1,5 +1,5 @@
 import {
-  AnyManifestEvent,
+  AnyEventType,
   AnyMessageBlock,
   HomeTabView,
   MessageAttachment,
@@ -175,17 +175,17 @@ export type AnySlackAssistantThreadEvent =
   | GenericMessageEvent
   | FileShareMessageEvent;
 
+export type SupportedEventType =
+  | AnyEventType
+  // TODO: confirm if these are still valid
+  | "user_status_changed"
+  | "user_profile_changed"
+  | "user_huddle_changed";
+
 /**
  * Events API payload data
  */
-export interface SlackEvent<
-  Type extends
-    | AnyManifestEvent
-    // TODO: confirm if these are still valid
-    | "user_status_changed"
-    | "user_profile_changed"
-    | "user_huddle_changed",
-> {
+export interface SlackEvent<Type extends SupportedEventType> {
   type: Type;
   subtype?: string;
 }
