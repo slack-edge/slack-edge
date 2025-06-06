@@ -1,6 +1,28 @@
+import { AnyEventType, isDebugLogEnabled, prettyPrint, ResponseUrlSender, SlackAPIClient } from "slack-web-api-client";
 import { SlackAppEnv, SlackEdgeAppEnv, SlackSocketModeAppEnv } from "./app-env";
-import { parseRequestBody } from "./request/request-parser";
-import { verifySlackRequest } from "./request/request-verification";
+import {
+  Assistant,
+  AssistantBotMessageHandler,
+  AssistantThreadContextChangedHandler,
+  AssistantThreadStartedHandler,
+  AssistantUserMessageHandler,
+} from "./assistant/assistant";
+import { AssistantThreadContext } from "./assistant/thread-context";
+import { AssistantThreadContextStore, DefaultAssistantThreadContextStore } from "./assistant/thread-context-store";
+import { Authorize } from "./authorization/authorize";
+import { AuthorizeErrorHandler, buildDefaultAuthorizeErrorHanlder } from "./authorization/authorize-error-handler";
+import { AuthorizeResult } from "./authorization/authorize-result";
+import { singleTeamAuthorize } from "./authorization/single-team-authorize";
+import {
+  builtBaseContext,
+  isAssitantThreadEvent,
+  SlackAppContext,
+  SlackAppContextWithAssistantUtilities,
+  SlackAppContextWithChannelId,
+  SlackAppContextWithRespond,
+} from "./context/context";
+import { AuthorizeError, ConfigError } from "./errors";
+import { ExecutionContext, NoopExecutionContext } from "./execution-context";
 import {
   BlockActionAckHandler,
   BlockActionLazyHandler,
@@ -24,52 +46,31 @@ import {
   ViewLazyHandler,
   ViewSubmissionAckHandler,
   ViewSubmissionLazyHandler,
+  AppRateLimitedLazyHandler,
 } from "./handler/handler";
-import { SlackRequestBody } from "./request/request-body";
-import { PreAuthorizeSlackMiddlewareRequest, SlackMiddlewareRequest, SlackRequest, SlackRequestWithChannelId } from "./request/request";
-import { SlashCommand } from "./request/payload/slash-command";
-import { toCompleteResponse } from "./response/response";
-import { SlackEvent, AnySlackEvent, AnySlackEventWithChannelId } from "./request/payload/event";
-import { AnyEventType, ResponseUrlSender, SlackAPIClient } from "slack-web-api-client";
-import {
-  builtBaseContext,
-  isAssitantThreadEvent,
-  SlackAppContext,
-  SlackAppContextWithAssistantUtilities,
-  SlackAppContextWithChannelId,
-  SlackAppContextWithRespond,
-} from "./context/context";
-import { PreAuthorizeMiddleware, Middleware } from "./middleware/middleware";
-import { isDebugLogEnabled, prettyPrint } from "slack-web-api-client";
-import { Authorize } from "./authorization/authorize";
-import { AuthorizeResult } from "./authorization/authorize-result";
-import { ignoringSelfEvents, urlVerification } from "./middleware/built-in-middleware";
-import { AuthorizeError, ConfigError } from "./errors";
-import { GlobalShortcut } from "./request/payload/global-shortcut";
-import { MessageShortcut } from "./request/payload/message-shortcut";
-import { BlockAction, BlockElementActions, BlockElementTypes } from "./request/payload/block-action";
-import { ViewSubmission } from "./request/payload/view-submission";
-import { ViewClosed } from "./request/payload/view-closed";
-import { BlockSuggestion } from "./request/payload/block-suggestion";
+import { SlackMessageHandler } from "./handler/message-handler";
 import { SlackOptionsHandler } from "./handler/options-handler";
 import { SlackViewHandler } from "./handler/view-handler";
-import { SlackMessageHandler } from "./handler/message-handler";
-import { singleTeamAuthorize } from "./authorization/single-team-authorize";
-import { ExecutionContext, NoopExecutionContext } from "./execution-context";
+import { ignoringSelfEvents, urlVerification } from "./middleware/built-in-middleware";
+import { Middleware, PreAuthorizeMiddleware } from "./middleware/middleware";
 import { PayloadType } from "./request/payload-types";
-import { isPostedMessageEvent } from "./utility/message-events";
+import { AppRateLimited } from "./request/payload/app-rate-limited";
+import { BlockAction, BlockElementActions, BlockElementTypes } from "./request/payload/block-action";
+import { BlockSuggestion } from "./request/payload/block-suggestion";
+import { AnySlackEvent, AnySlackEventWithChannelId, SlackEvent } from "./request/payload/event";
+import { GlobalShortcut } from "./request/payload/global-shortcut";
+import { MessageShortcut } from "./request/payload/message-shortcut";
+import { SlashCommand } from "./request/payload/slash-command";
+import { ViewClosed } from "./request/payload/view-closed";
+import { ViewSubmission } from "./request/payload/view-submission";
+import { PreAuthorizeSlackMiddlewareRequest, SlackMiddlewareRequest, SlackRequest, SlackRequestWithChannelId } from "./request/request";
+import { SlackRequestBody } from "./request/request-body";
+import { parseRequestBody } from "./request/request-parser";
+import { verifySlackRequest } from "./request/request-verification";
+import { toCompleteResponse } from "./response/response";
 import { SocketModeClient } from "./socket-mode/socket-mode-client";
 import { isFunctionExecutedEvent } from "./utility/function-executed-event";
-import {
-  Assistant,
-  AssistantBotMessageHandler,
-  AssistantThreadContextChangedHandler,
-  AssistantThreadStartedHandler,
-  AssistantUserMessageHandler,
-} from "./assistant/assistant";
-import { AssistantThreadContextStore, DefaultAssistantThreadContextStore } from "./assistant/thread-context-store";
-import { AssistantThreadContext } from "./assistant/thread-context";
-import { AuthorizeErrorHandler, buildDefaultAuthorizeErrorHanlder } from "./authorization/authorize-error-handler";
+import { isPostedMessageEvent } from "./utility/message-events";
 
 /**
  * Options for initializing SlackApp instance.
@@ -231,6 +232,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
   #blockSuggestions: ((body: SlackRequestBody) => SlackOptionsHandler<E, BlockSuggestion> | null)[] = [];
   #viewSubmissions: ((body: SlackRequestBody) => SlackViewHandler<E, ViewSubmission> | null)[] = [];
   #viewClosed: ((body: SlackRequestBody) => SlackViewHandler<E, ViewClosed> | null)[] = [];
+  #appRateLimited: ((body: SlackRequestBody) => SlackHandler<E, AppRateLimited> | null) | undefined = undefined;
 
   #assistantEnabled: boolean;
 
@@ -723,6 +725,21 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
   }
 
   /**
+   * Registers a single listener that handles type: "app_rate_limited" requests.
+   * @param lazy lazy function that can do anything asynchronously
+   * @returns this instance
+   */
+  appRateLimited(lazy: AppRateLimitedLazyHandler<E>): SlackApp<E> {
+    this.#appRateLimited = (body) => {
+      if (body.type !== PayloadType.AppRateLimited) {
+        return null;
+      }
+      return { ack: async () => "", lazy };
+    };
+    return this;
+  }
+
+  /**
    * Handles an http request and returns a response to it.
    * @param request request
    * @param ctx execution context
@@ -1147,7 +1164,31 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
             return toCompleteResponse(slackResponse);
           }
         }
+      } else if (body.type === PayloadType.AppRateLimited) {
+        // App rate limited
+        const slackRequest: SlackRequest<E, AppRateLimited> = {
+          payload: body as AppRateLimited,
+          ...baseRequest,
+        };
+        // Only a single appRateLimited handler is supported
+        if (this.#appRateLimited) {
+          const handler = this.#appRateLimited(payload);
+          if (handler) {
+            if (!this.startLazyListenerAfterAck) {
+              ctx.waitUntil(handler.lazy(slackRequest));
+            }
+            const slackResponse = await handler.ack(slackRequest);
+            if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
+              console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+            }
+            if (this.startLazyListenerAfterAck) {
+              ctx.waitUntil(handler.lazy(slackRequest));
+            }
+            return toCompleteResponse(slackResponse);
+          }
+        }
       }
+
       // TODO: Add code suggestion here
       console.log(`*** No listener found ***\n${JSON.stringify(baseRequest.body)}`);
       return new Response("No listener found", { status: 404 });

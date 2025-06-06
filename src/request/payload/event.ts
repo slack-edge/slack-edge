@@ -41,7 +41,6 @@ export type AnySlackEvent =
   | AppDeletedEvent
   | AppHomeOpenedEvent
   | AppMentionEvent
-  | AppRateLimitedEvent
   | AppUninstalledEvent
   | AssistantThreadStartedEvent
   | AssistantThreadContextChangedEvent
@@ -316,14 +315,6 @@ export interface AppMentionEvent extends SlackEvent<"app_mention"> {
   channel: string;
   event_ts: string;
   thread_ts?: string;
-}
-
-export interface AppRateLimitedEvent extends SlackEvent<"app_rate_limited"> {
-  type: "app_rate_limited";
-  token: string;
-  team_id: string;
-  minute_rate_limited: number;
-  api_app_id: string;
 }
 
 export interface AppUninstalledEvent extends SlackEvent<"app_uninstalled"> {
