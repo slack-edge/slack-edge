@@ -734,12 +734,12 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
    */
   appRateLimited(ack: AppRateLimitedAckHandler<E>, lazy: AppRateLimitedLazyHandler<E> = noopLazyHandler): SlackApp<E> {
     const handler: SlackHandler<E, AppRateLimited> = { ack, lazy };
-    this.#appRateLimited = ((body) => {
+    this.#appRateLimited = (body) => {
       if (body.type !== PayloadType.AppRateLimited) {
         return null;
       }
       return handler;
-    });
+    };
     return this;
   }
 
