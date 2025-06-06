@@ -29,7 +29,6 @@ import {
   ViewBlockAction,
   ViewStateValue,
   AppRateLimitedLazyHandler,
-  AppRateLimitedAckHandler,
 } from "../src/index";
 
 interface MyEnv extends SlackAppEnv {
@@ -230,13 +229,9 @@ describe("SlackApp", () => {
     app.viewClosed("callback_id", viewClosed, viewClosedLazy);
 
     // App rate limited
-    const appRateLimited: AppRateLimitedAckHandler = async ({ payload }) => {
-      const type: "app_rate_limited" = payload.type;
-    };
     const appRateLimitedLazy: AppRateLimitedLazyHandler = async ({ payload }) => {
       const type: "app_rate_limited" = payload.type;
     };
-    app.appRateLimited(appRateLimited);
-    app.appRateLimited(appRateLimited, appRateLimitedLazy);
+    app.appRateLimited(appRateLimitedLazy);
   });
 });
