@@ -24,6 +24,7 @@ import {
   FileShareMessageEvent,
   GenericMessageEvent,
 } from "../request/payload/event";
+import { AppRateLimited } from "../request/payload/app-rate-limited";
 
 /**
  * Returned data from an ack function.
@@ -212,3 +213,17 @@ export type ViewSubmissionLazyHandler<E extends SlackAppEnv = SlackAppEnv> = (
  * lazy function for view_closed request handling.
  */
 export type ViewClosedLazyHandler<E extends SlackAppEnv = SlackAppEnv> = (req: SlackRequest<E, ViewClosed>) => Promise<void>;
+
+// ----------------------------------------
+// App rate limited
+// ----------------------------------------
+
+/**
+ * ack function for app_rate_limited request handling.
+ */
+export type AppRateLimitedAckHandler<E extends SlackAppEnv = SlackAppEnv> = (req: SlackRequest<E, AppRateLimited>) => Promise<AckResponse>;
+
+/**
+ * lazy function for app_rate_limited request handling.
+ */
+export type AppRateLimitedLazyHandler<E extends SlackAppEnv = SlackAppEnv> = (req: SlackRequest<E, AppRateLimited>) => Promise<void>;

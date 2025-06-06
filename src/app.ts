@@ -46,6 +46,8 @@ import {
   ViewLazyHandler,
   ViewSubmissionAckHandler,
   ViewSubmissionLazyHandler,
+  AppRateLimitedAckHandler,
+  AppRateLimitedLazyHandler,
 } from "./handler/handler";
 import { SlackMessageHandler } from "./handler/message-handler";
 import { SlackOptionsHandler } from "./handler/options-handler";
@@ -719,6 +721,24 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
         return handler;
       }
       return null;
+    });
+    return this;
+  }
+
+  /**
+   * Registers a single listener that handles type: "app_rate_limited" requests.
+   * @param callbackId the constraints to match callback_id in a payload
+   * @param ack ack function that must complete within 3 seconds
+   * @param lazy lazy function that can do anything asynchronously
+   * @returns this instance
+   */
+  appRateLimited(ack: AppRateLimitedAckHandler<E>, lazy: AppRateLimitedLazyHandler<E> = noopLazyHandler): SlackApp<E> {
+    const handler: SlackHandler<E, AppRateLimited> = { ack, lazy };
+    this.#appRateLimited = ((body) => {
+      if (body.type !== PayloadType.AppRateLimited) {
+        return null;
+      }
+      return handler;
     });
     return this;
   }
