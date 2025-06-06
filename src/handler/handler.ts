@@ -219,11 +219,6 @@ export type ViewClosedLazyHandler<E extends SlackAppEnv = SlackAppEnv> = (req: S
 // ----------------------------------------
 
 /**
- * ack function for app_rate_limited request handling.
- */
-export type AppRateLimitedAckHandler<E extends SlackAppEnv = SlackAppEnv> = (req: SlackRequest<E, AppRateLimited>) => Promise<AckResponse>;
-
-/**
  * lazy function for app_rate_limited request handling.
  */
 export type AppRateLimitedLazyHandler<E extends SlackAppEnv = SlackAppEnv> = (req: SlackRequest<E, AppRateLimited>) => Promise<void>;

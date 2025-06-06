@@ -46,7 +46,6 @@ import {
   ViewLazyHandler,
   ViewSubmissionAckHandler,
   ViewSubmissionLazyHandler,
-  AppRateLimitedAckHandler,
   AppRateLimitedLazyHandler,
 } from "./handler/handler";
 import { SlackMessageHandler } from "./handler/message-handler";
@@ -732,13 +731,12 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
    * @param lazy lazy function that can do anything asynchronously
    * @returns this instance
    */
-  appRateLimited(ack: AppRateLimitedAckHandler<E>, lazy: AppRateLimitedLazyHandler<E> = noopLazyHandler): SlackApp<E> {
-    const handler: SlackHandler<E, AppRateLimited> = { ack, lazy };
+  appRateLimited(lazy: AppRateLimitedLazyHandler<E>): SlackApp<E> {
     this.#appRateLimited = (body) => {
       if (body.type !== PayloadType.AppRateLimited) {
         return null;
       }
-      return handler;
+      return { ack: async () => "", lazy };
     };
     return this;
   }
