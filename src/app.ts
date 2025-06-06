@@ -726,8 +726,6 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
 
   /**
    * Registers a single listener that handles type: "app_rate_limited" requests.
-   * @param callbackId the constraints to match callback_id in a payload
-   * @param ack ack function that must complete within 3 seconds
    * @param lazy lazy function that can do anything asynchronously
    * @returns this instance
    */
