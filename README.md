@@ -30,7 +30,7 @@ The only additional thing you need to do is to add [the **slack-cloudflare-worke
 
 ```bash
 npm install -g wrangler@latest
-npx wrangler generate my-slack-app
+npx wrangler init my-slack-app
 cd my-slack-app
 npm i slack-cloudflare-workers@latest
 ```
