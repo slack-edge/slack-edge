@@ -1032,6 +1032,7 @@ export interface UserChangeEvent extends SlackEvent<"user_change"> {
     team_id: string;
     name: string;
     deleted: boolean;
+    is_forgotten?: boolean;
     color: string;
     real_name: string;
     tz: string;
