@@ -2,8 +2,8 @@ import { LoggingEnv } from "../app-env.ts";
 import {
   OpenIDConnectTokenResponse,
   SlackAPIClient,
-} from "https://deno.land/x/slack_web_api_client@1.1.6/mod.ts";
-import { prettyPrint } from "https://deno.land/x/slack_web_api_client@1.1.6/mod.ts";
+} from "https://deno.land/x/slack_web_api_client@1.1.7/mod.ts";
+import { prettyPrint } from "https://deno.land/x/slack_web_api_client@1.1.7/mod.ts";
 
 /**
  * OpenIDConnectCallback args

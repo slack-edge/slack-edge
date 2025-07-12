@@ -4,7 +4,7 @@ import {
   HomeTabView,
   MessageAttachment,
   MessageMetadata,
-} from "https://deno.land/x/slack_web_api_client@1.1.6/mod.ts";
+} from "https://deno.land/x/slack_web_api_client@1.1.7/mod.ts";
 
 // ------------------------------------------
 // The Events API payloads
@@ -177,7 +177,7 @@ export type AnySlackAssistantThreadEvent =
 
 export type SupportedEventType =
   | AnyEventType
-  // TODO: confirm if these are still valid
+  // TODO: confirming Slack support team if these are really deleted
   | "user_status_changed"
   | "user_profile_changed"
   | "user_huddle_changed";

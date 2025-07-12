@@ -1,4 +1,4 @@
-import { OAuthV2AccessResponse } from "https://deno.land/x/slack_web_api_client@1.1.6/mod.ts";
+import { OAuthV2AccessResponse } from "https://deno.land/x/slack_web_api_client@1.1.7/mod.ts";
 
 /**
  * Slack app installation data.
