@@ -264,7 +264,7 @@ export class SlackOAuthApp<E extends SlackOAuthEnv> extends SlackApp<E> {
 
   #enableTokenRevocationHandlers(installationStore: InstallationStore<E>) {
     this.event("tokens_revoked", async ({ payload, body }) => {
-      if (payload.tokens.bot) {
+      if (Array.isArray(payload.tokens.bot) && payload.tokens.bot.length > 0) {
         // actually only one bot per app in a workspace
         try {
           await installationStore.deleteBotInstallation({
@@ -275,7 +275,7 @@ export class SlackOAuthApp<E extends SlackOAuthEnv> extends SlackApp<E> {
           console.log(`Failed to delete a bot installation (error: ${e})`);
         }
       }
-      if (payload.tokens.oauth) {
+      if (Array.isArray(payload.tokens.oauth) && payload.tokens.oauth.length > 0) {
         for (const userId of payload.tokens.oauth) {
           try {
             await installationStore.deleteUserInstallation({
