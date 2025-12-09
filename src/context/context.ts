@@ -378,6 +378,12 @@ export function extractChannelId(
   return undefined;
 }
 
+/**
+ * Determines if the payload represents an assistant thread event.
+ * Assistant thread events include thread lifecycle events and messages in assistant DM threads.
+ * @param body - The whole request payload data
+ * @returns true if this is an assistant thread event (thread_started, context_changed, or DM message)
+ */
 export function isAssitantThreadEvent(
   // deno-lint-ignore no-explicit-any
   body: Record<string, any>,
@@ -391,6 +397,16 @@ export function isAssitantThreadEvent(
   );
 }
 
+/**
+ * Extracts thread_ts property from assistant thread event payloads.
+ * This utility is specifically designed for AI assistant thread use cases.
+ *
+ * Note: thread_ts is always required for assistant threads, but optional for regular channels.
+ * Using this value indiscriminately with the say utility could affect existing app behaviors.
+ *
+ * @param body - The whole request payload data
+ * @returns thread_ts if this is an assistant thread event, undefined otherwise
+ */
 export function extractThreadTs(
   // deno-lint-ignore no-explicit-any
   body: Record<string, any>,
