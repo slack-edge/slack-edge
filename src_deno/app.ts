@@ -892,6 +892,94 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
   }
 
   /**
+   * Generates a helpful suggestion message when no listener is found for a request.
+   * @param body the request body
+   * @returns a suggestion message with code examples
+   */
+  private generateListenerSuggestion(body: SlackRequestBody): string {
+    if (body.type === PayloadType.EventsAPI && body.event) {
+      const eventType = body.event.type;
+      return `Suggestion: Register an event listener for '${eventType}' events:\n\n` +
+        `app.event("${eventType}", async (req) => {\n` +
+        `  // Handle ${eventType} event\n` +
+        `  console.log(req.payload);\n` +
+        `});`;
+    } else if (!body.type && body.command) {
+      const command = body.command;
+      return `Suggestion: Register a slash command listener for '${command}':\n\n` +
+        `app.command("${command}", async (req) => {\n` +
+        `  return "Acknowledged!";\n` +
+        `}, async (req) => {\n` +
+        `  // Handle command asynchronously\n` +
+        `});`;
+    } else if (body.type === PayloadType.GlobalShortcut) {
+      const callbackId = body.callback_id || "your_callback_id";
+      return `Suggestion: Register a global shortcut listener for '${callbackId}':\n\n` +
+        `app.shortcut("${callbackId}", async (req) => {\n` +
+        `  return "";\n` +
+        `}, async (req) => {\n` +
+        `  // Handle shortcut\n` +
+        `});`;
+    } else if (body.type === PayloadType.MessageShortcut) {
+      const callbackId = body.callback_id || "your_callback_id";
+      return `Suggestion: Register a message shortcut listener for '${callbackId}':\n\n` +
+        `app.messageShortcut("${callbackId}", async (req) => {\n` +
+        `  return "";\n` +
+        `}, async (req) => {\n` +
+        `  // Handle message shortcut\n` +
+        `});`;
+    } else if (body.type === PayloadType.BlockAction && body.actions && body.actions[0]) {
+      const action = body.actions[0];
+      const actionId = action.action_id;
+      const blockId = action.block_id;
+      const suggestion = blockId
+        ? `app.action({ action_id: "${actionId}", block_id: "${blockId}" }, async (req) => {\n`
+        : `app.action("${actionId}", async (req) => {\n`;
+      return `Suggestion: Register a block action listener for '${actionId}':\n\n` +
+        suggestion +
+        `  return "";\n` +
+        `}, async (req) => {\n` +
+        `  // Handle block action\n` +
+        `});`;
+    } else if (body.type === PayloadType.BlockSuggestion) {
+      const actionId = body.action_id || "your_action_id";
+      const blockId = body.block_id;
+      const suggestion = blockId
+        ? `app.options({ action_id: "${actionId}", block_id: "${blockId}" }, async (req) => {\n`
+        : `app.options("${actionId}", async (req) => {\n`;
+      return `Suggestion: Register a block suggestion listener for '${actionId}':\n\n` +
+        suggestion +
+        `  return { options: [] };\n` +
+        `});`;
+    } else if (body.type === PayloadType.ViewSubmission) {
+      const callbackId = body.view?.callback_id || "your_callback_id";
+      return `Suggestion: Register a view submission listener for '${callbackId}':\n\n` +
+        `app.view("${callbackId}", async (req) => {\n` +
+        `  return "";\n` +
+        `}, async (req) => {\n` +
+        `  // Handle view submission\n` +
+        `});`;
+    } else if (body.type === PayloadType.ViewClosed) {
+      const callbackId = body.view?.callback_id || "your_callback_id";
+      return `Suggestion: Register a view closed listener for '${callbackId}':\n\n` +
+        `app.viewClosed("${callbackId}", async (req) => {\n` +
+        `  return "";\n` +
+        `}, async (req) => {\n` +
+        `  // Handle view closed\n` +
+        `});`;
+    } else if (body.type === PayloadType.AppRateLimited) {
+      return `Suggestion: Register an app rate limited listener:\n\n` +
+        `app.appRateLimited(async (req) => {\n` +
+        `  // Handle rate limiting\n` +
+        `  console.log("Rate limited:", req.payload);\n` +
+        `});`;
+    }
+
+    return `Suggestion: Check your request payload and register the appropriate listener.\n` +
+      `See the documentation for available methods: event(), command(), action(), shortcut(), etc.`;
+  }
+
+  /**
    * Handles an http request and returns a response to it.
    * @param request request
    * @param ctx execution context
@@ -1409,11 +1497,12 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
         }
       }
 
-      // TODO: Add code suggestion here
+      // No listener found - provide helpful suggestion
+      const suggestion = this.generateListenerSuggestion(payload);
       console.log(
-        `*** No listener found ***\n${JSON.stringify(baseRequest.body)}`,
+        `*** No listener found ***\n${JSON.stringify(baseRequest.body)}\n\n${suggestion}`,
       );
-      return new Response("No listener found", { status: 404 });
+      return new Response(`No listener found\n\n${suggestion}`, { status: 404 });
     }
     return new Response("Invalid signature", { status: 401 });
   }
