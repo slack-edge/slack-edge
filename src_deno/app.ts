@@ -1182,23 +1182,43 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
           payload: body.event,
           ...baseRequest,
         };
+        // Collect all matching handlers to run them all
+        // This ensures both built-in handlers (e.g., token revocation) and user handlers are invoked
+        const matchedHandlers: SlackHandler<E, SlackEvent<SupportedEventType>>[] =
+          [];
         for (const matcher of this.#events) {
           const handler = matcher(payload);
           if (handler) {
-            if (!this.startLazyListenerAfterAck) {
+            matchedHandlers.push(handler);
+          }
+        }
+
+        if (matchedHandlers.length > 0) {
+          // Run all lazy handlers before ack (if configured)
+          if (!this.startLazyListenerAfterAck) {
+            for (const handler of matchedHandlers) {
               ctx.waitUntil(handler.lazy(slackRequest));
             }
+          }
+
+          // Run all ack handlers and log each response
+          for (const handler of matchedHandlers) {
             const slackResponse = await handler.ack(slackRequest);
             if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
               console.log(
                 `*** Slack response ***\n${prettyPrint(slackResponse)}`,
               );
             }
-            if (this.startLazyListenerAfterAck) {
+          }
+
+          // Run all lazy handlers after ack (if configured)
+          if (this.startLazyListenerAfterAck) {
+            for (const handler of matchedHandlers) {
               ctx.waitUntil(handler.lazy(slackRequest));
             }
-            return toCompleteResponse(slackResponse);
           }
+
+          return toCompleteResponse("");
         }
         if (payload.event?.type === "assistant_thread_context_changed") {
           // When a developer does not register their customer listener for this event,
