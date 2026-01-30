@@ -1,7 +1,7 @@
 import {
   isDebugLogEnabled,
   SlackAPIClient,
-} from "https://deno.land/x/slack_web_api_client@1.1.7/mod.ts";
+} from "https://deno.land/x/slack_web_api_client@1.1.8/mod.ts";
 import { SlackApp } from "../app.ts";
 import { ConfigError, SocketModeError } from "../errors.ts";
 import { SlackSocketModeAppEnv } from "../app-env.ts";
@@ -47,6 +47,14 @@ export class SocketModeClient {
     );
   }
 
+  /**
+   * Establishes a WebSocket connection to Slack using Socket Mode.
+   *
+   * This method opens a new WSS connection using the app-level token and sets up
+   * event handlers for incoming messages, connection events, and errors.
+   *
+   * @throws {SocketModeError} If the WebSocket connection cannot be established
+   */
   async connect() {
     const client = new SlackAPIClient(this.appLevelToken);
     try {
@@ -132,6 +140,12 @@ export class SocketModeClient {
     }
   }
 
+  /**
+   * Disconnects from the Slack Socket Mode connection.
+   *
+   * This method closes the active WebSocket connection if one exists
+   * and cleans up the connection reference.
+   */
   // deno-lint-ignore require-await
   async disconnect(): Promise<void> {
     if (this.ws) {

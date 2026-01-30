@@ -3,7 +3,7 @@ import {
   prettyPrint,
   ResponseUrlSender,
   SlackAPIClient,
-} from "https://deno.land/x/slack_web_api_client@1.1.7/mod.ts";
+} from "https://deno.land/x/slack_web_api_client@1.1.8/mod.ts";
 import {
   SlackAppEnv,
   SlackEdgeAppEnv,
@@ -1184,8 +1184,10 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
         };
         // Collect all matching handlers to run them all
         // This ensures both built-in handlers (e.g., token revocation) and user handlers are invoked
-        const matchedHandlers: SlackHandler<E, SlackEvent<SupportedEventType>>[] =
-          [];
+        const matchedHandlers: SlackHandler<
+          E,
+          SlackEvent<SupportedEventType>
+        >[] = [];
         for (const matcher of this.#events) {
           const handler = matcher(payload);
           if (handler) {

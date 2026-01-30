@@ -9,7 +9,7 @@ import {
   OAuthV2AccessResponse,
   OpenIDConnectTokenResponse,
   SlackAPIClient,
-} from "https://deno.land/x/slack_web_api_client@1.1.7/mod.ts";
+} from "https://deno.land/x/slack_web_api_client@1.1.8/mod.ts";
 import { toInstallation } from "./oauth/installation.ts";
 import {
   AfterInstallation,
@@ -275,7 +275,9 @@ export class SlackOAuthApp<E extends SlackOAuthEnv> extends SlackApp<E> {
           console.log(`Failed to delete a bot installation (error: ${e})`);
         }
       }
-      if (Array.isArray(payload.tokens.oauth) && payload.tokens.oauth.length > 0) {
+      if (
+        Array.isArray(payload.tokens.oauth) && payload.tokens.oauth.length > 0
+      ) {
         for (const userId of payload.tokens.oauth) {
           try {
             await installationStore.deleteUserInstallation({
