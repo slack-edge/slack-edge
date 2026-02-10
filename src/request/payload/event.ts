@@ -58,6 +58,7 @@ export type AnySlackEvent =
   | DNDUpdatedUserEvent
   | EmailDomainChangedEvent
   | EmojiChangedEvent
+  | EntityDetailsRequestedEvent
   | FileChangeEvent
   | FileCreatedEvent
   | FileDeletedEvent
@@ -509,6 +510,27 @@ export interface EmojiChangedEvent extends SlackEvent<"emoji_changed"> {
   old_name?: string;
   new_name?: string;
   event_ts: string;
+}
+
+export interface EntityDetailsRequestedEvent extends SlackEvent<"entity_details_requested"> {
+  type: "entity_details_requested";
+  user: string;
+  trigger_id: string;
+  link: {
+    url: string;
+    domain: string;
+  };
+  entity_url: string;
+  app_unfurl_url?: string;
+  user_locale: string;
+  event_ts: string;
+  external_ref?: {
+    id: string;
+    type?: string;
+  };
+  message_ts?: string;
+  thread_ts?: string;
+  channel?: string;
 }
 
 export interface FileChangeEvent extends SlackEvent<"file_change"> {
