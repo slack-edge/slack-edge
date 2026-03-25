@@ -175,7 +175,8 @@ export type SupportedEventType =
   // TODO: confirming Slack support team if these are really deleted
   | "user_status_changed"
   | "user_profile_changed"
-  | "user_huddle_changed";
+  | "user_huddle_changed"
+  | "entity_details_requested";
 
 /**
  * Events API payload data
