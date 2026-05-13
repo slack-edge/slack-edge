@@ -1033,6 +1033,8 @@ export interface TeamJoinEvent extends SlackEvent<"team_join"> {
     is_workflow_bot?: boolean;
     who_can_share_contact_card: string;
   };
+  cache_ts?: number;
+  event_ts: string;
 }
 
 export interface TeamRenameEvent extends SlackEvent<"team_rename"> {
