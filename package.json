@@ -34,7 +34,7 @@
   },
   "homepage": "https://github.com/slack-edge/slack-edge#readme",
   "dependencies": {
-    "slack-web-api-client": "^1.1.11"
+    "slack-web-api-client": "^1.1.12"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",
