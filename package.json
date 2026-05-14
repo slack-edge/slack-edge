@@ -12,7 +12,7 @@
     "format": "npx @biomejs/biome format --write *.json src/ test/",
     "test": "npm run format && npx vitest",
     "ci-test": "npx vitest run --coverage",
-    "knip": "knip",
+    "lint": "knip",
     "prepublishOnly": "npm run build:clean"
   },
   "repository": {
