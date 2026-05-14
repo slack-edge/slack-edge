@@ -12,6 +12,7 @@
     "format": "npx @biomejs/biome format --write *.json src/ test/",
     "test": "npm run format && npx vitest",
     "ci-test": "npx vitest run --coverage",
+    "lint": "knip",
     "prepublishOnly": "npm run build:clean"
   },
   "repository": {
@@ -43,7 +44,9 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",
     "@vitest/coverage-v8": "^4.1.6",
+    "knip": "^6.13.1",
     "typescript": "^5.9.3",
+    "vite": "^8.0.12",
     "vitest": "^4.1.6"
   }
 }

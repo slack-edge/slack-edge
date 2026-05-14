@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "test/**/*.{test,spec}.ts",
+    "test/test-app-*.ts",
+    "test/test-socket-mode-app-*.ts"
+  ],
+  "project": ["src/**/*.ts", "test/**/*.ts"],
+  "ignore": ["test/node-socket-mode/**"]
+}
