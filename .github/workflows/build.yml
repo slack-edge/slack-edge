@@ -21,3 +21,5 @@ jobs:
     - run: npm i
     - name: Build and run tests
       run: npm run build && npm run ci-test
+    - name: Knip
+      run: npm run knip
