@@ -21,5 +21,17 @@ jobs:
     - run: npm i
     - name: Build and run tests
       run: npm run build && npm run ci-test
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v3
+    - name: Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '22'
+        cache: 'npm'
+    - run: npm i
     - name: Lint
       run: npm run lint
