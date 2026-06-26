@@ -258,7 +258,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
       // because the underlying WS connection are securely established.
       this.signingSecret = "";
     } else {
-      if (!this.env.SLACK_SIGNING_SECRET) {
+      if (!this.env.SLACK_SIGNING_SECRET || this.env.SLACK_SIGNING_SECRET.trim() === "") {
         throw new ConfigError("env.SLACK_SIGNING_SECRET is required to run your app on edge functions!");
       }
       this.signingSecret = this.env.SLACK_SIGNING_SECRET;
