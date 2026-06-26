@@ -9,6 +9,7 @@ export * from "./assistant/thread-context";
 export * from "./assistant/thread-context-store";
 
 export * from "./errors";
+export * from "./error-handler";
 export * from "./oauth/error-codes";
 
 export * from "./handler/handler";

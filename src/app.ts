@@ -13,6 +13,7 @@ import { Authorize } from "./authorization/authorize";
 import { AuthorizeErrorHandler, buildDefaultAuthorizeErrorHanlder } from "./authorization/authorize-error-handler";
 import { AuthorizeResult } from "./authorization/authorize-result";
 import { singleTeamAuthorize } from "./authorization/single-team-authorize";
+import { SlackAppErrorHandler } from "./error-handler";
 import {
   builtBaseContext,
   isAssitantThreadEvent,
@@ -92,6 +93,12 @@ export interface SlackAppOptions<E extends SlackEdgeAppEnv | SlackSocketModeAppE
   authorizeErrorHandler?: AuthorizeErrorHandler<E>;
 
   /**
+   * The global error handler invoked when a post-authorize middleware or a listener throws.
+   * Can also be registered later via `app.error()`.
+   */
+  errorHandler?: SlackAppErrorHandler<E>;
+
+  /**
    * The endpoint routes to handle requests from Slack's API server.
    * When this app connects to Slack through Socket Mode, this setting won't be used.
    */
@@ -153,6 +160,12 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
    * The hoook that handles authorization failure.
    */
   public authorizeErrorHandler: AuthorizeErrorHandler<E>;
+
+  /**
+   * The global error handler invoked when a post-authorize middleware or a listener throws.
+   * When undefined, errors are logged and a safe response is returned.
+   */
+  public errorHandler: SlackAppErrorHandler<E> | undefined;
 
   /**
    * The endpoint routes to handle requests from Slack's API server.
@@ -271,6 +284,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
     }
     this.authorize = options.authorize ?? singleTeamAuthorize;
     this.authorizeErrorHandler = options.authorizeErrorHandler ?? buildDefaultAuthorizeErrorHanlder();
+    this.errorHandler = options.errorHandler;
     this.routes = { events: options.routes?.events };
     this.assistantThreadContextStore = options.assistantThreadContextStore;
     this.#assistantEnabled = options.assistantThreadContextStore !== undefined;
@@ -312,6 +326,56 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
   afterAuthorize(middleware: Middleware<E>): SlackApp<E> {
     this.postAuthorizeMiddleware.push(middleware);
     return this;
+  }
+
+  /**
+   * Registers the global error handler invoked when a post-authorize middleware or a listener
+   * throws. Only a single handler is supported; calling this again replaces the previous one.
+   * This naming is for consistency with bolt-js.
+   * @param handler the global error handler
+   * @returns this instance
+   */
+  error(handler: SlackAppErrorHandler<E>): SlackApp<E> {
+    this.errorHandler = handler;
+    return this;
+  }
+
+  /**
+   * Routes an error thrown by a listener/middleware to the global error handler.
+   * Returns a Response to send back (only meaningful for the synchronous ack phase).
+   */
+  async #handleError(error: unknown, request: SlackMiddlewareRequest<E>): Promise<Response> {
+    const err = error instanceof Error ? error : new Error(String(error));
+    if (this.errorHandler) {
+      const response = await this.errorHandler({ error: err, request, body: request.body });
+      if (response instanceof Response) {
+        return response;
+      }
+    } else {
+      console.error(`Unhandled exception in a listener: ${err.stack ?? err.message}`);
+    }
+    return new Response("", { status: 500 });
+  }
+
+  /**
+   * Runs a lazy listener under ctx.waitUntil, routing any thrown error to the global error handler.
+   * Lazy listeners run detached from the HTTP response, so the handler's Response (if any) is ignored.
+   */
+  #startLazy(
+    ctx: ExecutionContext,
+    request: SlackMiddlewareRequest<E>,
+    // deno-lint-ignore no-explicit-any
+    lazy: (req: any) => Promise<void>,
+  ): void {
+    ctx.waitUntil(
+      (async () => {
+        try {
+          await lazy(request);
+        } catch (error) {
+          await this.#handleError(error, request);
+        }
+      })(),
+    );
   }
 
   /**
@@ -971,6 +1035,9 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
         ...preAuthorizeRequest,
         context: authorizedContext,
       };
+      // Route any error thrown by a post-authorize middleware or a listener's ack phase
+      // to the global error handler. Lazy-listener errors are routed separately in #startLazy.
+      try {
       for (const middlware of this.postAuthorizeMiddleware) {
         const response = await middlware(baseRequest);
         if (response) {
@@ -1000,7 +1067,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
           // Run all lazy handlers before ack (if configured)
           if (!this.startLazyListenerAfterAck) {
             for (const handler of matchedHandlers) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
           }
 
@@ -1015,7 +1082,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
           // Run all lazy handlers after ack (if configured)
           if (this.startLazyListenerAfterAck) {
             for (const handler of matchedHandlers) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
           }
 
@@ -1027,7 +1094,7 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
           const handler = new Assistant({ threadContextStore: this.assistantThreadContextStore }).threadContextChangedHandler;
           if (!this.startLazyListenerAfterAck) {
             const req = slackRequest as EventRequest<E, "assistant_thread_context_changed">;
-            ctx.waitUntil(handler(req));
+            this.#startLazy(ctx, req, handler);
             return toCompleteResponse();
           }
         }
@@ -1041,14 +1108,14 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
           const handler = matcher(payload);
           if (handler) {
             if (!this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             const slackResponse = await handler.ack(slackRequest);
             if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
               console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
             }
             if (this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             return toCompleteResponse(slackResponse);
           }
@@ -1063,14 +1130,14 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
           const handler = matcher(payload);
           if (handler) {
             if (!this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             const slackResponse = await handler.ack(slackRequest);
             if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
               console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
             }
             if (this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             return toCompleteResponse(slackResponse);
           }
@@ -1085,14 +1152,14 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
           const handler = matcher(payload);
           if (handler) {
             if (!this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             const slackResponse = await handler.ack(slackRequest);
             if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
               console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
             }
             if (this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             return toCompleteResponse(slackResponse);
           }
@@ -1109,14 +1176,14 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
           const handler = matcher(payload);
           if (handler) {
             if (!this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             const slackResponse = await handler.ack(slackRequest);
             if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
               console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
             }
             if (this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             return toCompleteResponse(slackResponse);
           }
@@ -1150,14 +1217,14 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
           const handler = matcher(payload);
           if (handler) {
             if (!this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             const slackResponse = await handler.ack(slackRequest);
             if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
               console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
             }
             if (this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             return toCompleteResponse(slackResponse);
           }
@@ -1172,14 +1239,14 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
           const handler = matcher(payload);
           if (handler) {
             if (!this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             const slackResponse = await handler.ack(slackRequest);
             if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
               console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
             }
             if (this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             return toCompleteResponse(slackResponse);
           }
@@ -1195,14 +1262,14 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
           const handler = this.#appRateLimited(payload);
           if (handler) {
             if (!this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             const slackResponse = await handler.ack(slackRequest);
             if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
               console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
             }
             if (this.startLazyListenerAfterAck) {
-              ctx.waitUntil(handler.lazy(slackRequest));
+              this.#startLazy(ctx, slackRequest, handler.lazy);
             }
             return toCompleteResponse(slackResponse);
           }
@@ -1212,6 +1279,9 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
       // TODO: Add code suggestion here
       console.log(`*** No listener found ***\n${JSON.stringify(baseRequest.body)}`);
       return new Response("No listener found", { status: 404 });
+      } catch (error) {
+        return await this.#handleError(error, baseRequest);
+      }
     }
     return new Response("Invalid signature", { status: 401 });
   }
