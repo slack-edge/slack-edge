@@ -22,6 +22,7 @@ import {
   SlackAppContextWithChannelId,
   SlackAppContextWithRespond,
 } from "./context/context";
+import { startMessageStream } from "./context/message-stream";
 import { AuthorizeError, ConfigError } from "./errors";
 import { ExecutionContext, NoopExecutionContext } from "./execution-context";
 import {
@@ -1014,12 +1015,33 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
                 : undefined,
               ...params,
             });
+          // sayStream
+          context.sayStream = async (params = {}) =>
+            await startMessageStream(client, {
+              channel: channel_id,
+              thread_ts: params.thread_ts ?? thread_ts,
+              recipient_user_id: params.recipient_user_id,
+              recipient_team_id: params.recipient_team_id,
+              markdown_text: params.markdown_text,
+              loading_messages: params.loading_messages,
+              metadata: threadContext ? { event_type: "assistant_thread_context", event_payload: { ...threadContext } } : undefined,
+            });
         } else {
           context.say = async (params) =>
             await client.chat.postMessage({
               channel: context.channelId,
               thread_ts: context.threadTs, // for assistant apps
               ...params,
+            });
+          // sayStream
+          context.sayStream = async (params = {}) =>
+            await startMessageStream(client, {
+              channel: context.channelId,
+              thread_ts: (params.thread_ts ?? context.threadTs) as string,
+              recipient_user_id: params.recipient_user_id,
+              recipient_team_id: params.recipient_team_id,
+              markdown_text: params.markdown_text,
+              loading_messages: params.loading_messages,
             });
         }
       }
@@ -1038,247 +1060,247 @@ export class SlackApp<E extends SlackEdgeAppEnv | SlackSocketModeAppEnv> {
       // Route any error thrown by a post-authorize middleware or a listener's ack phase
       // to the global error handler. Lazy-listener errors are routed separately in #startLazy.
       try {
-      for (const middlware of this.postAuthorizeMiddleware) {
-        const response = await middlware(baseRequest);
-        if (response) {
-          return toCompleteResponse(response);
-        }
-      }
-
-      const payload = body as SlackRequestBody;
-
-      if (body.type === PayloadType.EventsAPI) {
-        // Events API
-        const slackRequest: SlackRequest<E, SlackEvent<SupportedEventType>> = {
-          payload: body.event,
-          ...baseRequest,
-        };
-        // Collect all matching handlers to run them all
-        // This ensures both built-in handlers (e.g., token revocation) and user handlers are invoked
-        const matchedHandlers: SlackHandler<E, SlackEvent<SupportedEventType>>[] = [];
-        for (const matcher of this.#events) {
-          const handler = matcher(payload);
-          if (handler) {
-            matchedHandlers.push(handler);
+        for (const middlware of this.postAuthorizeMiddleware) {
+          const response = await middlware(baseRequest);
+          if (response) {
+            return toCompleteResponse(response);
           }
         }
 
-        if (matchedHandlers.length > 0) {
-          // Run all lazy handlers before ack (if configured)
-          if (!this.startLazyListenerAfterAck) {
+        const payload = body as SlackRequestBody;
+
+        if (body.type === PayloadType.EventsAPI) {
+          // Events API
+          const slackRequest: SlackRequest<E, SlackEvent<SupportedEventType>> = {
+            payload: body.event,
+            ...baseRequest,
+          };
+          // Collect all matching handlers to run them all
+          // This ensures both built-in handlers (e.g., token revocation) and user handlers are invoked
+          const matchedHandlers: SlackHandler<E, SlackEvent<SupportedEventType>>[] = [];
+          for (const matcher of this.#events) {
+            const handler = matcher(payload);
+            if (handler) {
+              matchedHandlers.push(handler);
+            }
+          }
+
+          if (matchedHandlers.length > 0) {
+            // Run all lazy handlers before ack (if configured)
+            if (!this.startLazyListenerAfterAck) {
+              for (const handler of matchedHandlers) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+            }
+
+            // Run all ack handlers and log each response
             for (const handler of matchedHandlers) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
+              const slackResponse = await handler.ack(slackRequest);
+              if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
+                console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+              }
             }
-          }
 
-          // Run all ack handlers and log each response
-          for (const handler of matchedHandlers) {
-            const slackResponse = await handler.ack(slackRequest);
-            if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
-              console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+            // Run all lazy handlers after ack (if configured)
+            if (this.startLazyListenerAfterAck) {
+              for (const handler of matchedHandlers) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
             }
-          }
 
-          // Run all lazy handlers after ack (if configured)
-          if (this.startLazyListenerAfterAck) {
-            for (const handler of matchedHandlers) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
-            }
+            return toCompleteResponse("");
           }
-
-          return toCompleteResponse("");
-        }
-        if (payload.event?.type === "assistant_thread_context_changed") {
-          // When a developer does not register their customer listener for this event,
-          // SlackApp automatically calls the built-in one for ease of development.
-          const handler = new Assistant({ threadContextStore: this.assistantThreadContextStore }).threadContextChangedHandler;
-          if (!this.startLazyListenerAfterAck) {
-            const req = slackRequest as EventRequest<E, "assistant_thread_context_changed">;
-            this.#startLazy(ctx, req, handler);
-            return toCompleteResponse();
-          }
-        }
-      } else if (!body.type && body.command) {
-        // Slash commands
-        const slackRequest: SlackRequest<E, SlashCommand> = {
-          payload: body as SlashCommand,
-          ...baseRequest,
-        };
-        for (const matcher of this.#slashCommands) {
-          const handler = matcher(payload);
-          if (handler) {
+          if (payload.event?.type === "assistant_thread_context_changed") {
+            // When a developer does not register their customer listener for this event,
+            // SlackApp automatically calls the built-in one for ease of development.
+            const handler = new Assistant({ threadContextStore: this.assistantThreadContextStore }).threadContextChangedHandler;
             if (!this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
+              const req = slackRequest as EventRequest<E, "assistant_thread_context_changed">;
+              this.#startLazy(ctx, req, handler);
+              return toCompleteResponse();
             }
-            const slackResponse = await handler.ack(slackRequest);
-            if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
-              console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
-            }
-            if (this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
-            }
-            return toCompleteResponse(slackResponse);
           }
-        }
-      } else if (body.type === PayloadType.GlobalShortcut) {
-        // Global shortcuts
-        const slackRequest: SlackRequest<E, GlobalShortcut> = {
-          payload: body as GlobalShortcut,
-          ...baseRequest,
-        };
-        for (const matcher of this.#globalShorcuts) {
-          const handler = matcher(payload);
-          if (handler) {
-            if (!this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
+        } else if (!body.type && body.command) {
+          // Slash commands
+          const slackRequest: SlackRequest<E, SlashCommand> = {
+            payload: body as SlashCommand,
+            ...baseRequest,
+          };
+          for (const matcher of this.#slashCommands) {
+            const handler = matcher(payload);
+            if (handler) {
+              if (!this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              const slackResponse = await handler.ack(slackRequest);
+              if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
+                console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+              }
+              if (this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              return toCompleteResponse(slackResponse);
             }
-            const slackResponse = await handler.ack(slackRequest);
-            if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
-              console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
-            }
-            if (this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
-            }
-            return toCompleteResponse(slackResponse);
           }
-        }
-      } else if (body.type === PayloadType.MessageShortcut) {
-        // Message shortcuts
-        const slackRequest: SlackRequest<E, MessageShortcut> = {
-          payload: body as MessageShortcut,
-          ...baseRequest,
-        };
-        for (const matcher of this.#messageShorcuts) {
-          const handler = matcher(payload);
-          if (handler) {
-            if (!this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
+        } else if (body.type === PayloadType.GlobalShortcut) {
+          // Global shortcuts
+          const slackRequest: SlackRequest<E, GlobalShortcut> = {
+            payload: body as GlobalShortcut,
+            ...baseRequest,
+          };
+          for (const matcher of this.#globalShorcuts) {
+            const handler = matcher(payload);
+            if (handler) {
+              if (!this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              const slackResponse = await handler.ack(slackRequest);
+              if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
+                console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+              }
+              if (this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              return toCompleteResponse(slackResponse);
             }
-            const slackResponse = await handler.ack(slackRequest);
-            if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
-              console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
-            }
-            if (this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
-            }
-            return toCompleteResponse(slackResponse);
           }
-        }
-      } else if (body.type === PayloadType.BlockAction) {
-        // Block actions
-        // deno-lint-ignore no-explicit-any
-        const slackRequest: SlackRequest<E, BlockAction<any>> = {
+        } else if (body.type === PayloadType.MessageShortcut) {
+          // Message shortcuts
+          const slackRequest: SlackRequest<E, MessageShortcut> = {
+            payload: body as MessageShortcut,
+            ...baseRequest,
+          };
+          for (const matcher of this.#messageShorcuts) {
+            const handler = matcher(payload);
+            if (handler) {
+              if (!this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              const slackResponse = await handler.ack(slackRequest);
+              if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
+                console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+              }
+              if (this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              return toCompleteResponse(slackResponse);
+            }
+          }
+        } else if (body.type === PayloadType.BlockAction) {
+          // Block actions
           // deno-lint-ignore no-explicit-any
-          payload: body as BlockAction<any>,
-          ...baseRequest,
-        };
-        for (const matcher of this.#blockActions) {
-          const handler = matcher(payload);
-          if (handler) {
-            if (!this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
+          const slackRequest: SlackRequest<E, BlockAction<any>> = {
+            // deno-lint-ignore no-explicit-any
+            payload: body as BlockAction<any>,
+            ...baseRequest,
+          };
+          for (const matcher of this.#blockActions) {
+            const handler = matcher(payload);
+            if (handler) {
+              if (!this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              const slackResponse = await handler.ack(slackRequest);
+              if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
+                console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+              }
+              if (this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              return toCompleteResponse(slackResponse);
             }
-            const slackResponse = await handler.ack(slackRequest);
-            if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
-              console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+          }
+        } else if (body.type === PayloadType.BlockSuggestion) {
+          // Block suggestions
+          const slackRequest: SlackRequest<E, BlockSuggestion> = {
+            payload: body as BlockSuggestion,
+            ...baseRequest,
+          };
+          for (const matcher of this.#blockSuggestions) {
+            const handler = matcher(payload);
+            if (handler) {
+              // Note that the only way to respond to a block_suggestion request
+              // is to send an HTTP response with options/option_groups.
+              // Thus, we don't support lazy handlers for this pattern.
+              const slackResponse = await handler.ack(slackRequest);
+              if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
+                console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+              }
+              return toCompleteResponse(slackResponse);
             }
-            if (this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
+          }
+        } else if (body.type === PayloadType.ViewSubmission) {
+          // View submissions
+          const slackRequest: SlackRequest<E, ViewSubmission> = {
+            payload: body as ViewSubmission,
+            ...baseRequest,
+          };
+          for (const matcher of this.#viewSubmissions) {
+            const handler = matcher(payload);
+            if (handler) {
+              if (!this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              const slackResponse = await handler.ack(slackRequest);
+              if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
+                console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+              }
+              if (this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              return toCompleteResponse(slackResponse);
             }
-            return toCompleteResponse(slackResponse);
+          }
+        } else if (body.type === PayloadType.ViewClosed) {
+          // View closed
+          const slackRequest: SlackRequest<E, ViewClosed> = {
+            payload: body as ViewClosed,
+            ...baseRequest,
+          };
+          for (const matcher of this.#viewClosed) {
+            const handler = matcher(payload);
+            if (handler) {
+              if (!this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              const slackResponse = await handler.ack(slackRequest);
+              if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
+                console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+              }
+              if (this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              return toCompleteResponse(slackResponse);
+            }
+          }
+        } else if (body.type === PayloadType.AppRateLimited) {
+          // App rate limited
+          const slackRequest: SlackRequest<E, AppRateLimited> = {
+            payload: body as AppRateLimited,
+            ...baseRequest,
+          };
+          // Only a single appRateLimited handler is supported
+          if (this.#appRateLimited) {
+            const handler = this.#appRateLimited(payload);
+            if (handler) {
+              if (!this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              const slackResponse = await handler.ack(slackRequest);
+              if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
+                console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
+              }
+              if (this.startLazyListenerAfterAck) {
+                this.#startLazy(ctx, slackRequest, handler.lazy);
+              }
+              return toCompleteResponse(slackResponse);
+            }
           }
         }
-      } else if (body.type === PayloadType.BlockSuggestion) {
-        // Block suggestions
-        const slackRequest: SlackRequest<E, BlockSuggestion> = {
-          payload: body as BlockSuggestion,
-          ...baseRequest,
-        };
-        for (const matcher of this.#blockSuggestions) {
-          const handler = matcher(payload);
-          if (handler) {
-            // Note that the only way to respond to a block_suggestion request
-            // is to send an HTTP response with options/option_groups.
-            // Thus, we don't support lazy handlers for this pattern.
-            const slackResponse = await handler.ack(slackRequest);
-            if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
-              console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
-            }
-            return toCompleteResponse(slackResponse);
-          }
-        }
-      } else if (body.type === PayloadType.ViewSubmission) {
-        // View submissions
-        const slackRequest: SlackRequest<E, ViewSubmission> = {
-          payload: body as ViewSubmission,
-          ...baseRequest,
-        };
-        for (const matcher of this.#viewSubmissions) {
-          const handler = matcher(payload);
-          if (handler) {
-            if (!this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
-            }
-            const slackResponse = await handler.ack(slackRequest);
-            if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
-              console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
-            }
-            if (this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
-            }
-            return toCompleteResponse(slackResponse);
-          }
-        }
-      } else if (body.type === PayloadType.ViewClosed) {
-        // View closed
-        const slackRequest: SlackRequest<E, ViewClosed> = {
-          payload: body as ViewClosed,
-          ...baseRequest,
-        };
-        for (const matcher of this.#viewClosed) {
-          const handler = matcher(payload);
-          if (handler) {
-            if (!this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
-            }
-            const slackResponse = await handler.ack(slackRequest);
-            if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
-              console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
-            }
-            if (this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
-            }
-            return toCompleteResponse(slackResponse);
-          }
-        }
-      } else if (body.type === PayloadType.AppRateLimited) {
-        // App rate limited
-        const slackRequest: SlackRequest<E, AppRateLimited> = {
-          payload: body as AppRateLimited,
-          ...baseRequest,
-        };
-        // Only a single appRateLimited handler is supported
-        if (this.#appRateLimited) {
-          const handler = this.#appRateLimited(payload);
-          if (handler) {
-            if (!this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
-            }
-            const slackResponse = await handler.ack(slackRequest);
-            if (isDebugLogEnabled(this.env.SLACK_LOGGING_LEVEL)) {
-              console.log(`*** Slack response ***\n${prettyPrint(slackResponse)}`);
-            }
-            if (this.startLazyListenerAfterAck) {
-              this.#startLazy(ctx, slackRequest, handler.lazy);
-            }
-            return toCompleteResponse(slackResponse);
-          }
-        }
-      }
 
-      // TODO: Add code suggestion here
-      console.log(`*** No listener found ***\n${JSON.stringify(baseRequest.body)}`);
-      return new Response("No listener found", { status: 404 });
+        // TODO: Add code suggestion here
+        console.log(`*** No listener found ***\n${JSON.stringify(baseRequest.body)}`);
+        return new Response("No listener found", { status: 404 });
       } catch (error) {
         return await this.#handleError(error, baseRequest);
       }
@@ -1294,9 +1316,10 @@ export type MessageEventPattern = string | RegExp | undefined;
 /**
  * Events API request
  */
-export type EventRequest<E extends SlackAppEnv, T> = Extract<AnySlackEventWithChannelId, { type: T }> extends never
-  ? SlackRequest<E, Extract<AnySlackEvent, { type: T }>>
-  : SlackRequestWithChannelId<E, Extract<AnySlackEventWithChannelId, { type: T }>>;
+export type EventRequest<E extends SlackAppEnv, T> =
+  Extract<AnySlackEventWithChannelId, { type: T }> extends never
+    ? SlackRequest<E, Extract<AnySlackEvent, { type: T }>>
+    : SlackRequestWithChannelId<E, Extract<AnySlackEventWithChannelId, { type: T }>>;
 
 /**
  * Events API: "function_executed" event for custom functions in Workflow Builder

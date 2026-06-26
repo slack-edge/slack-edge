@@ -26,6 +26,7 @@ export * from "./middleware/middleware";
 export * from "./middleware/built-in-middleware";
 
 export * from "./context/context";
+export * from "./context/message-stream";
 
 export * from "./oauth-app";
 export * from "./oauth/authorize-url-generator";

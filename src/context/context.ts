@@ -11,6 +11,7 @@ import {
 import { PayloadType } from "../request/payload-types";
 import { AssistantThreadContextStore } from "../assistant/thread-context-store";
 import { AssistantThreadContext } from "../assistant/thread-context";
+import { MessageStream, SayStreamParams } from "./message-stream";
 
 /**
  * SlackApp context object that provides data available before performing authorize()
@@ -61,6 +62,11 @@ export type SlackAppContext = {
 export type SlackAppContextWithChannelId = {
   channelId: string;
   say: (params: Omit<ChatPostMessageRequest, "channel">) => Promise<ChatPostMessageResponse>;
+  /**
+   * say-style streaming helper. Auto-sources channel_id/thread_ts like `say`, starts an AI
+   * streaming message, and resolves to a handle with `.append()` and `.stop()`.
+   */
+  sayStream: (params?: SayStreamParams) => Promise<MessageStream>;
 } & SlackAppContext;
 
 export type SlackAppContextWithAssistantUtilities = SlackAppContextWithChannelId & {

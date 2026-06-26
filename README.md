@@ -379,6 +379,24 @@ app.error(async ({ error, request, body }) => {
 
 You can also pass it at construction time via the `errorHandler` option. When no handler is registered, slack-edge logs the error and returns a safe response (`500` for the ack phase), preserving the previous behavior.
 
+#### Streaming AI Messages
+
+For AI assistants, `context.sayStream` is a `say`-style helper that streams a message token-by-token. Like `say`, it auto-sources `channel_id`/`thread_ts` from the request (and, in an assistant thread, attaches the thread context metadata). It returns a handle with `.append()` and `.stop()`:
+
+```ts
+app.event("app_mention", async ({ context }) => {
+  const stream = await context.sayStream({ loading_messages: ["Thinking…"] });
+  for await (const chunk of someLLM()) {
+    await stream.append(chunk); // markdown string, or { markdown_text }
+  }
+  await stream.stop(); // optionally pass final markdown / blocks / metadata
+});
+```
+
+It works in both `app.assistant(...)` utilities and plain `app.event` / `app.message` listeners. Note that the underlying `chat.startStream` API requires a thread, so pass `thread_ts` for non-threaded channel events.
+
+The lower-level `startMessageStream(client, params)` wraps the raw `chat.startStream` → `chat.appendStream*` → `chat.stopStream` lifecycle directly if you need it without a listener context.
+
 #### `ack` / `lazy` Functions
 
 You may be unfamiliar with the "lazy listener" concept in this framework. To learn more about it, please read bolt-python's documentation: https://tools.slack.dev/bolt-python/concepts/lazy-listeners
