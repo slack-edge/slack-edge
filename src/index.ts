@@ -9,6 +9,7 @@ export * from "./assistant/thread-context";
 export * from "./assistant/thread-context-store";
 
 export * from "./errors";
+export * from "./error-handler";
 export * from "./oauth/error-codes";
 
 export * from "./handler/handler";
@@ -25,6 +26,7 @@ export * from "./middleware/middleware";
 export * from "./middleware/built-in-middleware";
 
 export * from "./context/context";
+export * from "./context/message-stream";
 
 export * from "./oauth-app";
 export * from "./oauth/authorize-url-generator";

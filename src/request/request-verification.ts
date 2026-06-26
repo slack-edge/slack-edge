@@ -7,18 +7,32 @@
  * @returns true if the given signature is valid
  */
 export async function verifySlackRequest(signingSecret: string, requestHeaders: Headers, requestBody: string): Promise<boolean> {
+  // A blank signing secret must never be used to verify a request. Without this guard,
+  // an HMAC computed with an empty key would still "verify", which an attacker who knows
+  // the secret is unset could forge. (mirrors bolt-js v4.7.2 hardening)
+  if (!signingSecret || signingSecret.trim() === "") {
+    console.log("signingSecret is empty!");
+    return false;
+  }
+
   const timestampHeader = requestHeaders.get("x-slack-request-timestamp");
   if (!timestampHeader) {
     console.log("x-slack-request-timestamp header is missing!");
     return false;
   }
-  const fiveMinutesAgoSeconds = Math.floor(Date.now() / 1000) - 60 * 5;
-  if (Number.parseInt(timestampHeader) < fiveMinutesAgoSeconds) {
+  const timestamp = Number.parseInt(timestampHeader);
+  if (Number.isNaN(timestamp)) {
+    // A non-numeric timestamp would otherwise slip past the skew check below (NaN comparisons are false).
+    console.log("x-slack-request-timestamp header is not a valid number!");
+    return false;
+  }
+  // Reject timestamps outside a +/-5 minute window to mitigate replay attacks.
+  if (Math.abs(Math.floor(Date.now() / 1000) - timestamp) > 60 * 5) {
     return false;
   }
 
   const signatureHeader = requestHeaders.get("x-slack-signature");
-  if (!timestampHeader || !signatureHeader) {
+  if (!signatureHeader) {
     console.log("x-slack-signature header is missing!");
     return false;
   }
