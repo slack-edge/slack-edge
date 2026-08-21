@@ -35,6 +35,7 @@ import { AnyEventType, AnyMessageBlock, HomeTabView, MessageAttachment, MessageM
 // See: https://api.slack.com/apis/events-api
 
 export type AnySlackEvent =
+  | AgentSessionStoppedEvent
   | AppRequestedEvent
   | AppInstalledEvent
   | AppUninstalledTeamEvent
@@ -120,6 +121,7 @@ export type AnySlackEvent =
 
 // These union types may not be a complete set of events
 export type AnySlackEventWithChannelId =
+  | AgentSessionStoppedEvent
   | AppHomeOpenedEvent
   | AppMentionEvent
   | AppUninstalledEvent
@@ -172,6 +174,8 @@ export type AnySlackAssistantThreadEvent =
 
 export type SupportedEventType =
   | AnyEventType
+  // Removable once slack-web-api-client ships this in AnyManifestEvent
+  | "agent_session_stopped"
   // TODO: confirming Slack support team if these are really deleted
   | "user_status_changed"
   | "user_profile_changed"
@@ -184,6 +188,24 @@ export type SupportedEventType =
 export interface SlackEvent<Type extends SupportedEventType> {
   type: Type;
   subtype?: string;
+}
+
+/**
+ * Sent when a user stops an agent session that is in the `processing` status.
+ *
+ * The status does not change on its own: the app must transition the session out of
+ * `processing` by calling `agents.sessions.setStatus` or `chat.stopStream`.
+ *
+ * @see https://docs.slack.dev/reference/events/agent_session_stopped
+ */
+export interface AgentSessionStoppedEvent extends SlackEvent<"agent_session_stopped"> {
+  type: "agent_session_stopped";
+  user: string;
+  channel: string;
+  thread_ts: string;
+  message_ts: string;
+  team_id: string;
+  event_ts: string;
 }
 
 export interface AppRequestedEvent extends SlackEvent<"app_requested"> {
