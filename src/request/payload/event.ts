@@ -35,12 +35,16 @@ import { AnyEventType, AnyMessageBlock, HomeTabView, MessageAttachment, MessageM
 // See: https://api.slack.com/apis/events-api
 
 export type AnySlackEvent =
+  | AgentSessionStoppedEvent
+  | AgentSessionTitleChangedEvent
   | AppRequestedEvent
   | AppInstalledEvent
   | AppUninstalledTeamEvent
   | AppDeletedEvent
   | AppHomeOpenedEvent
   | AppMentionEvent
+  | AgentSessionStoppedEvent
+  | AgentSessionTitleChangedEvent
   | AppUninstalledEvent
   | AssistantThreadStartedEvent
   | AssistantThreadContextChangedEvent
@@ -176,7 +180,9 @@ export type SupportedEventType =
   | "user_status_changed"
   | "user_profile_changed"
   | "user_huddle_changed"
-  | "entity_details_requested";
+  | "entity_details_requested"
+  | "agent_session_stopped"
+  | "agent_session_title_changed";
 
 /**
  * Events API payload data
@@ -324,6 +330,27 @@ export interface AppMentionEvent extends SlackEvent<"app_mention"> {
   channel: string;
   event_ts: string;
   thread_ts?: string;
+}
+
+export interface AgentSessionStoppedEvent extends SlackEvent<"agent_session_stopped"> {
+  type: "agent_session_stopped";
+  channel: string;
+  thread_ts: string;
+  user: string;
+  /** Timestamps of in-progress streaming messages Slack stopped. Empty if no stream was active. */
+  streaming_message_ts: string[];
+  event_ts: string;
+}
+
+export interface AgentSessionTitleChangedEvent extends SlackEvent<"agent_session_title_changed"> {
+  type: "agent_session_title_changed";
+  channel: string;
+  thread_ts: string;
+  user: string;
+  title: string;
+  /** Omitted if the session had no title before. */
+  previous_title?: string;
+  event_ts: string;
 }
 
 export interface AppUninstalledEvent extends SlackEvent<"app_uninstalled"> {
