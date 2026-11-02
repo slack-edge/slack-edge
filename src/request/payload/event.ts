@@ -35,6 +35,9 @@ import { AnyEventType, AnyMessageBlock, HomeTabView, MessageAttachment, MessageM
 // See: https://api.slack.com/apis/events-api
 
 export type AnySlackEvent =
+  | AgentSessionStoppedEvent
+  | AgentSessionTitleChangedEvent
+  | AppContextChangedEvent
   | AppRequestedEvent
   | AppInstalledEvent
   | AppUninstalledTeamEvent
@@ -58,6 +61,7 @@ export type AnySlackEvent =
   | DNDUpdatedUserEvent
   | EmailDomainChangedEvent
   | EmojiChangedEvent
+  | EntityCommentsRequestedEvent
   | EntityDetailsRequestedEvent
   | FileChangeEvent
   | FileCreatedEvent
@@ -109,6 +113,7 @@ export type AnySlackEvent =
   | TeamRenameEvent
   | TokensRevokedEvent
   | UserChangeEvent
+  | UserConnectionEvent
   | UserHuddleChangedEvent
   | UserProfileChangedEvent
   | UserStatusChangedEvent
@@ -176,7 +181,8 @@ export type SupportedEventType =
   | "user_status_changed"
   | "user_profile_changed"
   | "user_huddle_changed"
-  | "entity_details_requested";
+  | "entity_details_requested"
+  | "user_connection";
 
 /**
  * Events API payload data
@@ -184,6 +190,41 @@ export type SupportedEventType =
 export interface SlackEvent<Type extends SupportedEventType> {
   type: Type;
   subtype?: string;
+}
+
+export interface AgentSessionStoppedEvent extends SlackEvent<"agent_session_stopped"> {
+  type: "agent_session_stopped";
+  user: string;
+  channel: string;
+  thread_ts: string;
+  // timestamps of in-progress streaming messages Slack stopped; empty when no stream was active
+  streaming_message_ts: string[];
+  event_ts: string;
+}
+
+export interface AgentSessionTitleChangedEvent extends SlackEvent<"agent_session_title_changed"> {
+  type: "agent_session_title_changed";
+  user: string;
+  channel: string;
+  thread_ts: string;
+  title: string;
+  previous_title?: string;
+  team_id?: string;
+  enterprise_id?: string;
+  event_ts: string;
+}
+
+export interface AppContextChangedEvent extends SlackEvent<"app_context_changed"> {
+  type: "app_context_changed";
+  // `context` is `{}` when the user is viewing no entities. Entities are ordered by relevance.
+  context: {
+    entities?: {
+      type: string;
+      value: string;
+      team_id?: string;
+    }[];
+  };
+  event_ts?: string;
 }
 
 export interface AppRequestedEvent extends SlackEvent<"app_requested"> {
@@ -510,6 +551,26 @@ export interface EmojiChangedEvent extends SlackEvent<"emoji_changed"> {
   value?: string; // only for add
   old_name?: string;
   new_name?: string;
+  event_ts: string;
+}
+
+export interface EntityCommentsRequestedEvent extends SlackEvent<"entity_comments_requested"> {
+  type: "entity_comments_requested";
+  user: string;
+  trigger_id: string;
+  link: {
+    url: string;
+    domain: string;
+  };
+  entity_url: string;
+  external_ref?: {
+    id: string;
+    type?: string;
+  };
+  cursor?: string;
+  limit?: number;
+  // present when replies for a specific comment thread are requested
+  thread_root_id?: string;
   event_ts: string;
 }
 
@@ -1122,6 +1183,17 @@ export interface UserChangeEvent extends SlackEvent<"user_change"> {
     who_can_share_contact_card: string;
   };
   cache_ts: number;
+  event_ts: string;
+}
+
+export interface UserConnectionEvent extends SlackEvent<"user_connection"> {
+  type: "user_connection";
+  subtype: "connect" | "disconnect";
+  user: string;
+  // only for the connect subtype
+  trigger_id?: string;
+  // only for the disconnect subtype on org-level installs
+  enterprise_id?: string;
   event_ts: string;
 }
 
