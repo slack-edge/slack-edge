@@ -35,6 +35,9 @@ import { AnyEventType, AnyMessageBlock, HomeTabView, MessageAttachment, MessageM
 // See: https://api.slack.com/apis/events-api
 
 export type AnySlackEvent =
+  | AgentSessionStoppedEvent
+  | AgentSessionTitleChangedEvent
+  | AppContextChangedEvent
   | AppRequestedEvent
   | AppInstalledEvent
   | AppUninstalledTeamEvent
@@ -58,6 +61,7 @@ export type AnySlackEvent =
   | DNDUpdatedUserEvent
   | EmailDomainChangedEvent
   | EmojiChangedEvent
+  | EntityCommentsRequestedEvent
   | EntityDetailsRequestedEvent
   | FileChangeEvent
   | FileCreatedEvent
@@ -120,6 +124,8 @@ export type AnySlackEvent =
 
 // These union types may not be a complete set of events
 export type AnySlackEventWithChannelId =
+  | AgentSessionStoppedEvent
+  | AgentSessionTitleChangedEvent
   | AppHomeOpenedEvent
   | AppMentionEvent
   | AppUninstalledEvent
@@ -176,7 +182,11 @@ export type SupportedEventType =
   | "user_status_changed"
   | "user_profile_changed"
   | "user_huddle_changed"
-  | "entity_details_requested";
+  | "entity_details_requested"
+  | "entity_comments_requested"
+  | "app_context_changed"
+  | "agent_session_stopped"
+  | "agent_session_title_changed";
 
 /**
  * Events API payload data
@@ -244,6 +254,61 @@ export interface AppRequestedEvent extends SlackEvent<"app_requested"> {
   };
   message: string;
   date_created: number;
+}
+
+export interface AgentSessionStoppedEvent extends SlackEvent<"agent_session_stopped"> {
+  type: "agent_session_stopped";
+  channel: string;
+  user: string;
+  thread_ts: string;
+  // timestamps of in-progress streaming messages that Slack stopped (empty if no stream was active)
+  streaming_message_ts: string[];
+  event_ts: string;
+}
+
+export interface AgentSessionTitleChangedEvent extends SlackEvent<"agent_session_title_changed"> {
+  type: "agent_session_title_changed";
+  channel: string;
+  user: string;
+  thread_ts: string;
+  title: string;
+  previous_title?: string;
+  team_id?: string;
+  event_ts: string;
+}
+
+export interface AppContextChangedEvent extends SlackEvent<"app_context_changed"> {
+  type: "app_context_changed";
+  // what the user is currently viewing; empty object if nothing is present
+  context: {
+    entities?: {
+      type: string;
+      value: string;
+      team_id?: string;
+    }[];
+  };
+  event_ts?: string;
+}
+
+export interface EntityCommentsRequestedEvent extends SlackEvent<"entity_comments_requested"> {
+  type: "entity_comments_requested";
+  user: string;
+  trigger_id: string;
+  link: {
+    url: string;
+    domain: string;
+  };
+  entity_url: string;
+  external_ref?: {
+    id: string;
+    type?: string;
+  };
+  // pagination cursor your app returned previously
+  cursor?: string;
+  limit?: number;
+  // when present, return replies for this comment thread instead of top-level comments
+  thread_root_id?: string;
+  event_ts: string;
 }
 
 export interface AppHomeOpenedEvent extends SlackEvent<"app_home_opened"> {
