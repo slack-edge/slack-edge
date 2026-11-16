@@ -1,5 +1,5 @@
 import { assert, test, describe } from "vitest";
-import { AppMentionEvent } from "../src/index";
+import { AppMentionEvent, UserConnectionStatusRequestedEvent } from "../src/index";
 
 describe("Events", () => {
   test("app_mention", () => {
@@ -91,5 +91,13 @@ describe("Events", () => {
       event_ts: "1707806347.397809",
     };
     assert.equal(event.type, "app_mention");
+  });
+  test("user_connection_status_requested", () => {
+    const event: UserConnectionStatusRequestedEvent = {
+      type: "user_connection_status_requested",
+      user: "U123",
+      event_ts: "1763337600.000100",
+    };
+    assert.equal(event.type, "user_connection_status_requested");
   });
 });
