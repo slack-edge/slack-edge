@@ -110,6 +110,7 @@ export type AnySlackEvent =
   | TokensRevokedEvent
   | UserChangeEvent
   | UserHuddleChangedEvent
+  | UserConnectionStatusRequestedEvent
   | UserProfileChangedEvent
   | UserStatusChangedEvent
   | WorkflowDeletedEvent
@@ -176,6 +177,8 @@ export type SupportedEventType =
   | "user_status_changed"
   | "user_profile_changed"
   | "user_huddle_changed"
+  // TODO: remove once slack-web-api-client's AnyEventType includes it
+  | "user_connection_status_requested"
   | "entity_details_requested";
 
 /**
@@ -1196,6 +1199,15 @@ export interface UserHuddleChangedEvent extends SlackEvent<"user_huddle_changed"
     who_can_share_contact_card: string;
   };
   cache_ts: number;
+  event_ts: string;
+}
+
+// Sent when Slack has no connection status for a user of an app with user connections enabled.
+// Respond by calling the apps.user.connection.update API method.
+// https://docs.slack.dev/reference/events/user_connection_status_requested
+export interface UserConnectionStatusRequestedEvent extends SlackEvent<"user_connection_status_requested"> {
+  type: "user_connection_status_requested";
+  user: string;
   event_ts: string;
 }
 
